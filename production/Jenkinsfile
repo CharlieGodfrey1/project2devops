@@ -1,0 +1,19 @@
+pipeline {
+    agent any
+    stages {
+        stage("Deploy Production Environment"){
+            steps{
+                withCredentials([file(credentialsId: 'SSHKey', variable: 'SSHKeyPair')]) {
+                     sh '''
+                        ssh -i ${SSHKeyPair} ubuntu@35.177.185.74 -oStrictHostKeyChecking=no  << EOF
+                        sudo apt-get update
+                        git clone https://github.com/HShanks19/PublicProjectRepo
+                        cd ~/PublicProjectRepo
+                        docker-compose build --parallel
+                        docker-compose up -d
+                    '''
+                }
+            }
+        }
+    }
+}

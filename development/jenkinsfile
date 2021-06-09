@@ -1,0 +1,46 @@
+pipeline {
+    agent any
+    environment {
+        DOCKER_USERNAME = "hollyshanks"
+        DOCKER_PASSWORD = credentials("DOCKER_PASSWORD")
+        SSHKEY = credentials("SSHKey")
+    }
+    stages {
+        stage("Docker Login") {
+            steps {
+                sh "echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin"
+            }
+        }
+	stage("Build"){
+            steps {
+                sh "docker-compose build --parallel"
+            }
+        }
+        stage("Push"){
+            steps {
+                sh "docker-compose push"
+            }
+        }
+        stage("Development Deployment"){
+            steps{
+                withCredentials([file(credentialsId: 'SSHKey', variable: 'SSHKeyPair')]) {
+                     sh '''
+                        ssh -i ${SSHKeyPair} ubuntu@3.8.2.27 -oStrictHostKeyChecking=no  << EOF
+                        sudo apt-get update
+			                  rm -rf ./PublicProjectRepo
+                        git clone --single-branch --branch Dev https://github.com/HShanks19/PublicProjectRepo
+                        cd ~/PublicProjectRepo
+                        docker-compose build --parallel
+                        docker-compose up -d
+                    '''
+                }
+            }
+        }
+    stage('Test BackEnd') {			 
+      steps {	
+        sh "pip3 install -r backend/requirements.txt"
+        sh "pytest backend/tests/test_backend.py"
+      }
+    }		
+    }
+}
